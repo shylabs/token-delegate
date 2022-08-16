@@ -1,10 +1,14 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{ self, TokenAccount, Transfer, Approve };
-use solana_program::{ system_program };
+use anchor_spl::token::{self, Approve, TokenAccount, Transfer};
+use solana_program::system_program;
 
-declare_id!("TDLGbdMdskdC2DPz2eSeW3tuxtqRchjt5JMsUrdGTGm");
+declare_id!("821i9RWA8xc5nN2i4MA4AsGRqqXx68qCVEi4YVkcWHpE");
 
-fn verify_matching_accounts(left: &Pubkey, right: &Pubkey, error_msg: Option<String>) -> anchor_lang::Result<()> {
+fn verify_matching_accounts(
+    left: &Pubkey,
+    right: &Pubkey,
+    error_msg: Option<String>,
+) -> anchor_lang::Result<()> {
     if *left != *right {
         if error_msg.is_some() {
             msg!(error_msg.unwrap().as_str());
@@ -21,9 +25,7 @@ pub mod token_delegate {
     use super::*;
 
     // Link SPL token account to the token-delegate program
-    pub fn delegate_link(ctx: Context<DelegateLink>,
-        inp_amount: u64,
-    ) -> anchor_lang::Result<()> {
+    pub fn delegate_link(ctx: Context<DelegateLink>, inp_amount: u64) -> anchor_lang::Result<()> {
         let cpi_accounts = Approve {
             to: ctx.accounts.token_account.to_account_info(),
             delegate: ctx.accounts.delegate_root.to_account_info(),
@@ -36,7 +38,8 @@ pub mod token_delegate {
     }
 
     // Approve a sub-delegate for later SPL token transfers, and optionally link SPL token account to the token-delegate program
-    pub fn delegate_approve(ctx: Context<DelegateApprove>,
+    pub fn delegate_approve(
+        ctx: Context<DelegateApprove>,
         inp_link_token: bool,
         inp_link_amount: u64,
         inp_allowance_amount: u64,
@@ -53,8 +56,10 @@ pub mod token_delegate {
             token::approve(cpi_ctx, inp_link_amount)?;
         }
         // Ensure signer is token account owner
-        verify_matching_accounts(&ctx.accounts.token_account.owner, ctx.accounts.owner.to_account_info().key,
-            Some(String::from("Invalid token owner"))
+        verify_matching_accounts(
+            &ctx.accounts.token_account.owner,
+            ctx.accounts.owner.to_account_info().key,
+            Some(String::from("Invalid token owner")),
         )?;
         let allowance = &mut ctx.accounts.allowance;
         allowance.owner = *ctx.accounts.owner.to_account_info().key;
@@ -65,16 +70,21 @@ pub mod token_delegate {
     }
 
     // Perform a delegated transfer and update the allowance
-    pub fn delegate_transfer(ctx: Context<DelegateTransfer>,
+    pub fn delegate_transfer(
+        ctx: Context<DelegateTransfer>,
         inp_amount: u64,
     ) -> anchor_lang::Result<()> {
         //msg!("Transfer amount: {}", inp_amount.to_string());
         let allowance = &mut ctx.accounts.allowance;
-        verify_matching_accounts(&allowance.token_account, ctx.accounts.from.to_account_info().key,
-            Some(String::from("Invalid token account"))
+        verify_matching_accounts(
+            &allowance.token_account,
+            ctx.accounts.from.to_account_info().key,
+            Some(String::from("Invalid token account")),
         )?;
-        verify_matching_accounts(&allowance.delegate, ctx.accounts.delegate.to_account_info().key,
-            Some(String::from("Invalid delegate"))
+        verify_matching_accounts(
+            &allowance.delegate,
+            ctx.accounts.delegate.to_account_info().key,
+            Some(String::from("Invalid delegate")),
         )?;
         if inp_amount > 0 {
             //msg!("Begin: {}", ald.amount.to_string());
@@ -83,14 +93,9 @@ pub mod token_delegate {
                 // Perform transfer
                 allowance.amount = diff.unwrap();
                 //msg!("Allowance: {}", ald.amount.to_string());
-                let (_pk, root_bump) = Pubkey::find_program_address(
-                    &[ctx.program_id.as_ref()],
-                    ctx.program_id
-                );
-                let seeds = &[
-                    ctx.program_id.as_ref(),
-                    &[root_bump]
-                ];
+                let (_pk, root_bump) =
+                    Pubkey::find_program_address(&[ctx.program_id.as_ref()], ctx.program_id);
+                let seeds = &[ctx.program_id.as_ref(), &[root_bump]];
                 let signer = &[&seeds[..]];
                 let cpi_accounts = Transfer {
                     from: ctx.accounts.from.to_account_info(),
@@ -101,7 +106,11 @@ pub mod token_delegate {
                 let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer);
                 token::transfer(cpi_ctx, inp_amount)?;
             } else {
-                msg!("Delegate transfer amount: {} exceeds allowance: {}", inp_amount.to_string(), allowance.amount.to_string());
+                msg!(
+                    "Delegate transfer amount: {} exceeds allowance: {}",
+                    inp_amount.to_string(),
+                    allowance.amount.to_string()
+                );
                 return Err(ErrorCode::AllowanceExceeded.into());
             }
         }
@@ -109,11 +118,14 @@ pub mod token_delegate {
     }
 
     // Update the delegate allowance amount
-    pub fn delegate_update_allowance(ctx: Context<DelegateUpdateAmount>,
+    pub fn delegate_update_allowance(
+        ctx: Context<DelegateUpdateAmount>,
         inp_amount: u64,
     ) -> anchor_lang::Result<()> {
-        verify_matching_accounts(&ctx.accounts.allowance.owner, ctx.accounts.owner.to_account_info().key,
-            Some(String::from("Invalid current allowance owner"))
+        verify_matching_accounts(
+            &ctx.accounts.allowance.owner,
+            ctx.accounts.owner.to_account_info().key,
+            Some(String::from("Invalid current allowance owner")),
         )?;
         ctx.accounts.allowance.amount = inp_amount;
         Ok(())
@@ -121,14 +133,20 @@ pub mod token_delegate {
 
     // Update the delegate owner in case the SPL token owner is changed separately
     pub fn delegate_update_owner(ctx: Context<DelegateUpdateOwner>) -> anchor_lang::Result<()> {
-        verify_matching_accounts(&ctx.accounts.allowance.token_account, ctx.accounts.token_account.to_account_info().key,
-            Some(String::from("Invalid token account"))
+        verify_matching_accounts(
+            &ctx.accounts.allowance.token_account,
+            ctx.accounts.token_account.to_account_info().key,
+            Some(String::from("Invalid token account")),
         )?;
-        verify_matching_accounts(&ctx.accounts.allowance.owner, ctx.accounts.current_owner.to_account_info().key,
-            Some(String::from("Invalid current allowance owner"))
+        verify_matching_accounts(
+            &ctx.accounts.allowance.owner,
+            ctx.accounts.current_owner.to_account_info().key,
+            Some(String::from("Invalid current allowance owner")),
         )?;
-        verify_matching_accounts(&ctx.accounts.token_account.owner, ctx.accounts.new_owner.to_account_info().key,
-            Some(String::from("Invalid new allowance owner"))
+        verify_matching_accounts(
+            &ctx.accounts.token_account.owner,
+            ctx.accounts.new_owner.to_account_info().key,
+            Some(String::from("Invalid new allowance owner")),
         )?;
         ctx.accounts.allowance.owner = *ctx.accounts.new_owner.to_account_info().key;
         Ok(())
@@ -136,8 +154,10 @@ pub mod token_delegate {
 
     // Close the delegate allowance and recover the storage fee
     pub fn delegate_close(ctx: Context<DelegateClose>) -> anchor_lang::Result<()> {
-        verify_matching_accounts(&ctx.accounts.allowance.owner, ctx.accounts.owner.to_account_info().key,
-            Some(String::from("Invalid allowance owner"))
+        verify_matching_accounts(
+            &ctx.accounts.allowance.owner,
+            ctx.accounts.owner.to_account_info().key,
+            Some(String::from("Invalid allowance owner")),
         )?;
         Ok(())
     }
@@ -147,10 +167,12 @@ pub mod token_delegate {
 pub struct DelegateLink<'info> {
     pub owner: Signer<'info>,
     #[account(seeds = [program_id.as_ref()], bump)]
+    /// CHECK: hey doing this to get around!
     pub delegate_root: UncheckedAccount<'info>,
     #[account(mut)]
     pub token_account: Account<'info, TokenAccount>,
     #[account(address = token::ID)]
+    /// CHECK: hey doing this to get around!
     pub token_program: AccountInfo<'info>,
 }
 
@@ -161,14 +183,18 @@ pub struct DelegateApprove<'info> {
     #[account(mut)]
     pub allowance_payer: Signer<'info>,
     pub owner: Signer<'info>,
+    /// CHECK: hey doing this to get around!
     pub delegate: UncheckedAccount<'info>,
     #[account(seeds = [program_id.as_ref()], bump)]
+    /// CHECK: hey doing this to get around!
     pub delegate_root: UncheckedAccount<'info>,
     #[account(mut)]
     pub token_account: Account<'info, TokenAccount>,
     #[account(address = token::ID)]
+    /// CHECK: hey doing this to get around!
     pub token_program: UncheckedAccount<'info>,
     #[account(address = system_program::ID)]
+    /// CHECK: hey doing this to get around!
     pub system_program: UncheckedAccount<'info>,
 }
 
@@ -178,12 +204,14 @@ pub struct DelegateTransfer<'info> {
     pub allowance: Account<'info, DelegateAllowance>,
     pub delegate: Signer<'info>,
     #[account(seeds = [program_id.as_ref()], bump)]
+    /// CHECK: hey doing this to get around!
     pub delegate_root: UncheckedAccount<'info>,
     #[account(mut)]
     pub from: Account<'info, TokenAccount>,
     #[account(mut)]
     pub to: Account<'info, TokenAccount>,
     #[account(address = token::ID)]
+    /// CHECK: hey doing this to get around!
     pub token_program: UncheckedAccount<'info>,
 }
 
@@ -200,6 +228,7 @@ pub struct DelegateUpdateOwner<'info> {
     pub allowance: Account<'info, DelegateAllowance>,
     pub token_account: Account<'info, TokenAccount>,
     pub current_owner: Signer<'info>,
+    /// CHECK: hey doing this to get around!
     pub new_owner: UncheckedAccount<'info>,
 }
 
@@ -209,16 +238,17 @@ pub struct DelegateClose<'info> {
     pub allowance: Account<'info, DelegateAllowance>,
     pub owner: Signer<'info>,
     #[account(mut)]
+    /// CHECK: hey doing this to get around!
     pub fee_recipient: UncheckedAccount<'info>,
 }
 
 #[account]
 #[derive(Default)]
 pub struct DelegateAllowance {
-    pub owner: Pubkey,                  // The owner of the allowance (must be same as the owner of the token account)
-    pub token_account: Pubkey,          // The token account for the allowance
-    pub delegate: Pubkey,               // The delegate granted an allowance of tokens to transfer (typically the root PDA of another program)
-    pub amount: u64,                    // The amount of tokens for the allowance (same decimals as underlying token)
+    pub owner: Pubkey, // The owner of the allowance (must be same as the owner of the token account)
+    pub token_account: Pubkey, // The token account for the allowance
+    pub delegate: Pubkey, // The delegate granted an allowance of tokens to transfer (typically the root PDA of another program)
+    pub amount: u64, // The amount of tokens for the allowance (same decimals as underlying token)
 }
 // LEN: 8 + 32 + 32 + 32 + 8 = 112
 
