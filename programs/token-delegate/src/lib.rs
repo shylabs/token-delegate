@@ -24,17 +24,35 @@ fn verify_matching_accounts(
 pub mod token_delegate {
     use super::*;
 
+    pub fn hello_world(_ctx: Context<Initialize>) -> Result<()> {
+        msg!("Hello world, from solana smart contract.");
+        Ok(())
+    }
+
+    pub fn echo_number(_ctx: Context<Initialize>, inp_amount: u64) -> Result<()> {
+        msg!("Echo {}", inp_amount);
+        Ok(())
+    }
+
     // Link SPL token account to the token-delegate program
-    pub fn delegate_link(ctx: Context<DelegateLink>, inp_amount: u64) -> anchor_lang::Result<()> {
-        let cpi_accounts = Approve {
+    pub fn delegate_link(_ctx: Context<DelegateLink>, inp_amount: u64) -> anchor_lang::Result<()> {
+        msg!("Delegating to token delegate");
+        Ok(())
+        /*let cpi_accounts = Approve {
             to: ctx.accounts.token_account.to_account_info(),
             delegate: ctx.accounts.delegate_root.to_account_info(),
             authority: ctx.accounts.owner.to_account_info(),
         };
-        let cpi_program = ctx.accounts.token_program.to_account_info();
-        let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
-        token::approve(cpi_ctx, inp_amount)?;
-        Ok(())
+        */
+
+        //msg!("Made CPI accts");
+        //let cpi_program = ctx.accounts.token_program.to_account_info();
+        //msg!("Cpi Program done");
+        //let cpi_ctx = CpiContext::new(cpi_program, cpi_accounts);
+        //msg!("Cpi CTX, attempting to approve now");
+        //token::approve(cpi_ctx, inp_amount)?;
+        //msg!("Done");
+        //Ok(())
     }
 
     // Approve a sub-delegate for later SPL token transfers, and optionally link SPL token account to the token-delegate program
@@ -162,6 +180,9 @@ pub mod token_delegate {
         Ok(())
     }
 }
+
+#[derive(Accounts)]
+pub struct Initialize {}
 
 #[derive(Accounts)]
 pub struct DelegateLink<'info> {

@@ -1,7 +1,9 @@
 [features]
 seeds = false
-[programs.localnet]
-token_delegate = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+#[programs.localnet]
+#token_delegate = "821i9RWA8xc5nN2i4MA4AsGRqqXx68qCVEi4YVkcWHpE"
+[programs.devnet]
+token_delegate = "821i9RWA8xc5nN2i4MA4AsGRqqXx68qCVEi4YVkcWHpE"
 
 [registry]
 url = "https://anchor.projectserum.com"
@@ -11,4 +13,5 @@ cluster = "devnet"
 wallet = "/Users/steviesh/.config/solana-keypairs/keypair.json"
 
 [scripts]
+# must set browser environment to empty
 test = "yarn run jest"
